@@ -1,0 +1,118 @@
+using UnityEngine;
+using UnityEngine.Networking;
+using System.Collections;
+
+public class LoginManager : MonoBehaviour
+{
+    public string serverUrl = "http://yourserver.com";
+
+    public void Register(string username, string password)
+    {
+        StartCoroutine(RegisterUser(username, password));
+    }
+
+    IEnumerator RegisterUser(string username, string password)
+    {
+        var form = new WWWForm();
+        form.AddField("username", username);
+        form.AddField("password", password);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(serverUrl + "/register", form))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+                Debug.LogError(www.error);
+            else
+                Debug.Log("Registered!");
+        }
+    }
+
+    public void Login(string username, string password)
+    {
+        StartCoroutine(LoginUser(username, password));
+    }
+
+    IEnumerator LoginUser(string username, string password)
+    {
+        var form = new WWWForm();
+        form.AddField("username", username);
+        form.AddField("password", password);
+
+        using (UnityWebRequest www = UnityWebRequest.Post(serverUrl + "/login", form))
+        {
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+                Debug.LogError("Login failed: " + www.error);
+            else
+                Debug.Log("Logged in as " + username);
+        }
+    }
+}
+using Unity.Netcode;
+using UnityEngine;
+
+public class PlayerNetwork : NetworkBehaviour
+{
+    public override void OnNetworkSpawn()
+    {
+        if (IsOwner)
+        {
+            transform.position = Random.insideUnitSphere * 10f;
+        }
+    }
+}
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const mongoose = require('mongoose');
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cors());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost/minecraft_accounts', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
+const User = mongoose.model('User', {
+    username: { type: String, unique: true },
+    password: String
+});
+
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const existing = await User.findOne({ username });
+        if (existing) return res.status(400).send('Username taken');
+
+        const user = new User({ username, password });
+        await user.save();
+        res.send('Registered');
+    } catch (err) {
+        res.status(500).send(err);
+    }
+});
+
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username, password });
+    if (user) res.send('Login successful');
+    else res.status(401).send('Invalid credentials');
+});
+
+app.listen(3000, () => console.log('Server running on port 3000'));
+{
+  "name": "minecraft-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongoose": "^7.0.3"
+  }
+}
